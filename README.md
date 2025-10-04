@@ -64,3 +64,8 @@ Naming works like this:
  - if item is just a String: added it with item name.
  - if item is a Array: "`last_item_name` + `item_idx`" (`"array.": ["zero", "one"]` => `array.0 = "zero"; array.1 = "one"`)
  - if item is a Dictionary: "`last_item_name` + `item_name`"
+## How to use?
+Just call `JsonTranslation.load_tr()` in some script (`Game` or something like this)
+```gdscript
+JsonTranslation.load_tr("path_to_file/file_uid")
+```
