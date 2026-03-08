@@ -66,6 +66,8 @@
 ##"multy_item.variant2.2" => "inside a Dictionary!"
 ##[/codeblock]
 
+static var _regex: RegEx # RegEx to find contexts of messages.
+
 const DEBUGGING = false ## Print debug stuff?
 
 ## Loads [JSON] file and adds messages and strings from it.
@@ -73,12 +75,16 @@ static func load_tr(file: String):
 	var json: JSON = load(file)
 	var data: Dictionary = (json.data as Dictionary)
 	
+	_regex = RegEx.create_from_string("\\?(?<context>.*)\\?")
+	
 	for lang: String in data.keys():
 		var translation: Translation = Translation.new()
 		translation.locale = lang
 		for message in data[lang].keys():
+			
 			if data[lang][message] is String: ## If message is String: Just put it innto Translation file.
-				translation.add_message(message, data[lang][message])
+				var s = _get_context(message)
+				translation.add_message(s[0], data[lang][message], s[1])
 			elif data[lang][message] is Array: ## If message is Array: Send it for procces by another function.
 				process_array(translation, message, data[lang][message])
 			elif data[lang][message] is Dictionary: ## If message is Dictionary: Send it for procces by another function.
@@ -87,14 +93,25 @@ static func load_tr(file: String):
 		TranslationServer.add_translation(translation)
 		
 		if DEBUGGING: ## Prints all messages and their translations.
+			print("--- %s ---" % lang.to_upper())
 			for message in translation.get_message_list():
-				print("%s => \"%s\"" % [message, translation.get_message(message)])
+				var msg_text: String
+				var p = message.find("\u0004")
+				if p == -1:
+					var untranslated = message
+					print("%s => \"%s\"" % [untranslated, translation.get_message(message)])
+				else:
+					var context = message.substr(0, p)
+					var untranslated = message.substr(p + 1)
+					print("%s => \"%s\" (context: %s)" % [untranslated, translation.get_message(message, context), context])
+
 
 ## Process array-item from [JSON]-translation-file and adds messages and translations into translation file.
 static func process_array(translation: Translation, src_name: String, array: Array):
 	for item in array:
 		if item is String:
-			translation.add_message(src_name + str(array.find(item)), item)
+			var s = _get_context(src_name + str(array.find(item)))
+			translation.add_message(s[0], item, s[1])
 		elif item is Array:
 			process_array(translation, src_name + str(array.find(item)), item)
 		elif item is Dictionary:
@@ -103,8 +120,22 @@ static func process_array(translation: Translation, src_name: String, array: Arr
 static func process_dict(translation: Translation, src_name: String, dict: Dictionary):
 	for item in dict.keys():
 		if dict[item] is String:
-			translation.add_message(src_name + str(item), dict[item])
+			var s = _get_context(src_name + str(item))
+			translation.add_message(s[0], dict[item], s[1])
 		elif dict[item] is Array:
 			process_array(translation, src_name + item, dict[item])
 		elif dict[item] is Dictionary:
 			process_dict(translation, src_name + item, dict[item])
+
+# Returns [PackedStringArray] with 2 items:[br]
+# 0 - message without context.[br]
+# 1 - context.
+static func _get_context(string: String) -> PackedStringArray:
+	var res: PackedStringArray = [string, ""]
+	
+	var mat = _regex.search(string)
+	if mat:
+		res[0] = _regex.sub(string, "")
+		res[1] = mat.get_string("context")
+	
+	return res

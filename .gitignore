@@ -1,6 +1,10 @@
 # Godot 4+ specific ignores
 .godot/
 .nomedia
+project.godot
+icon.svg
+*.import
+.editorconfig
 
 # Godot-specific ignores
 .import/
